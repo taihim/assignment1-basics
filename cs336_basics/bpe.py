@@ -50,6 +50,85 @@ if __name__ == "__main__":
     # BPE is a compression algorithm that iteratively replaces ('merges') the most frequent pair of bytes with a single, new unused index
     # this algo adds subword tokens to our vocab to maximise the compression of the input sequence
     # if a word occurs enough times in the training data, it is added as a single subword unit
-    #
+    # BPE happens in 3 steps
+    # 1. Vocabulary initialization (special chars + 256 bytes values)
+    # 2. Pretokenization (rough pass over the corpus that reduces our work when counting how often pairs of characters)
+    # 3. Compute BPE merges
 
+    # our vocabulary initially is just the 256 byte values 0-255 and any special tokens e.g. <|endoftext|> which helps define document boundaries
 
+    input_str = """low low low low low\n lower lower widest widest widest\n newest newest newest newest newest newest"""
+
+    # using a naive pretokenizer e.g. one that splits on whitespace
+
+    vocab = {i: (i,) for i in range(256)}
+    next_id = 256
+
+    merges = []
+
+    from collections import defaultdict
+    counts = defaultdict(int)
+    out = "".join(input_str.split("\n")).split(" ")
+    print(out)
+    for word in out:
+        counts[tuple(word.encode('utf-8'))] += 1
+    print("Initial counts: ", counts)
+
+    for i in range(1):
+
+        merge_counts = defaultdict(int)
+        
+        for word_bytes, freq in counts.items():
+            for i in range(len(word_bytes) - 1):
+                pair = (word_bytes[i], word_bytes[i + 1])
+                merge_counts[pair] += freq
+            
+        print("Merge counts: ", merge_counts)
+
+        max_pair = max(merge_counts, key=lambda pair: (merge_counts[pair], pair)) # get largest count, and if tied, get lexographically largest pair
+        print("Max Pair: ", max_pair)
+
+        merges.append(max_pair)
+        vocab[next_id] = max_pair
+        next_id += 1
+
+        new_counts = defaultdict(int)
+        for word_bytes, freq in counts.items():
+            new_sequence = []
+            for i in range(len(word_bytes) - 1):
+                old_pair = (word_bytes[i], word_bytes[i + 1])
+                if old_pair == max_pair:
+                    new_sequence.append(next_id)
+                else:
+                    new_sequence.append(word_bytes[i])
+            new_counts[tuple(new_sequence)] = freq
+
+        counts = new_counts
+        print("New counts: ", new_counts)
+        break
+    # for i in range(1):
+    #     max_value = -1
+    #     max_keys = [0]
+    #     for key, val in merge_counts.items():
+    #         if val >= max_value:
+    #             if val == max_value:
+    #                 elem = max_keys.pop()
+    #                 max_keys.append(max(key, elem))
+
+    #             else:
+    #                 max_value = val
+
+    #                 max_keys.pop()
+    #                 max_keys.append(key)
+        
+    #     value_to_merge = tuple("".join(max_keys[0]).encode('utf-8'))
+    #     print("Value to merge: ", value_to_merge, type(value_to_merge[0]))
+        
+    #     for key in counts.keys():
+    #         print(key)
+            
+    #         if value_to_merge in key:
+    #             print(key)
+    
+    # print((1,2,3) in (1,2,3,4,5))
+    # print(bytes((110, 101, 119, 101, 115, 116)).decode('utf-8'))
