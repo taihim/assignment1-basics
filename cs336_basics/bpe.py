@@ -61,7 +61,7 @@ if __name__ == "__main__":
 
     # using a naive pretokenizer e.g. one that splits on whitespace
 
-    vocab = {i: (i,) for i in range(256)}
+    vocab = {i: (i, ) for i in range(256)}
     vocab[256] = ("<|endoftext|>",)
     next_id = 257
 
@@ -109,6 +109,68 @@ if __name__ == "__main__":
 
     print(vocab)
     
+    tokenize_str = "newest west"
+    encoded_str = list(tokenize_str.encode("utf-8"))
+
+    # while True:
+        
+    #     # print("Current length: ", len(encoded_str))
+    #     # print("Current i: ", i)
+    #     i = 0
+    #     for idx, merge in vocab.items():
+    #         if idx < 257:
+    #             continue
+    #         if i == len(encoded_str) - 1:
+    #             break
+    #         if list(merge) == [encoded_str[i], encoded_str[i + 1]]:
+    #             encoded_str[i:i+2] = [idx]
+    #             print("matched")
+    #             print(merge)
+    #             break
+    #         i+=1
+    #     print("Encoded str: ", encoded_str)
+
+    merges = [merge for idx, merge in vocab.items() if idx > 256]
+    print(merges)
+    print(encoded_str)
+
+    count = 0
+    i = 0
+
+    while count < 8:
+        for idx, merge in enumerate(merges):    
+            if i == len(encoded_str):
+                print("I is equal, breaking")
+                break            
+        
+            if merge == (encoded_str[i], encoded_str[i + 1]):
+                print("merge match")
+                print("Pair: ", (encoded_str[i], encoded_str[i + 1]))
+                print("Merge: ", merge)
+                encoded_str[i:i+2] = [idx + 257]
+                print(encoded_str)
+                break
+
+        if i >= len(encoded_str):
+            print("decreasing")
+            i = len(encoded_str) - 2
+        else:
+            i += 1
+        count += 1
+    
+    
+    # print(encoded_str)
+
+
+    (110, 101, 119, 101, 115, 116)
+    
+    # 257 = (115, 116) s t
+    # 258 = (101, 257) e st
+    # 259 = (111, 119) o w
+    # 260 = (108, 259) l ow
+    # 261 = (119, 258) w est
+    # 262 = (110, 101) n e
+
     # print(vocab[256])
     # print(vocab[257])
     # print(vocab[258])
