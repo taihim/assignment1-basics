@@ -62,7 +62,8 @@ if __name__ == "__main__":
     # using a naive pretokenizer e.g. one that splits on whitespace
 
     vocab = {i: (i,) for i in range(256)}
-    next_id = 256
+    vocab[256] = ("<|endoftext|>",)
+    next_id = 257
 
     merges = []
 
@@ -74,7 +75,7 @@ if __name__ == "__main__":
         counts[tuple(word.encode('utf-8'))] += 1
     print("Initial counts: ", counts)
 
-    for i in range(1):
+    for i in range(6):
 
         merge_counts = defaultdict(int)
         
@@ -90,22 +91,38 @@ if __name__ == "__main__":
 
         merges.append(max_pair)
         vocab[next_id] = max_pair
-        next_id += 1
 
         new_counts = defaultdict(int)
         for word_bytes, freq in counts.items():
-            new_sequence = []
+            copy_bytes = list(word_bytes)
             for i in range(len(word_bytes) - 1):
                 old_pair = (word_bytes[i], word_bytes[i + 1])
                 if old_pair == max_pair:
-                    new_sequence.append(next_id)
-                else:
-                    new_sequence.append(word_bytes[i])
-            new_counts[tuple(new_sequence)] = freq
+                    copy_bytes[i:i+2] = [next_id]
+                
+            new_counts[tuple(copy_bytes)] = freq
+        
+        next_id += 1
 
         counts = new_counts
         print("New counts: ", new_counts)
-        break
+
+    print(vocab)
+    
+    # print(vocab[256])
+    # print(vocab[257])
+    # print(vocab[258])
+    # print(vocab[259])
+    # print(vocab[260])
+    # print(vocab[261])
+    
+    # print("".join([chr(uni) for uni in vocab[256]]))
+    # print("".join([chr(uni) for uni in vocab[257]]))
+    # print("".join([chr(uni) for uni in vocab[258]]))
+    # print("".join([chr(uni) for uni in vocab[259]]))
+    # print("".join([chr(uni) for uni in vocab[260]]))
+    # print("".join([chr(uni) for uni in vocab[261]]))
+    
     # for i in range(1):
     #     max_value = -1
     #     max_keys = [0]
