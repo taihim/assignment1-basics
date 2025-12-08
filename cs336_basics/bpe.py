@@ -4,32 +4,49 @@ def decode_utf8_bytes_to_str_wrong(bytestring: bytes):
     return "".join([bytes([b]).decode("utf-8") for b in bytestring])
 
 
+
+# 257 -> (115, 116) -> b'st'
+# 258 -> (101, 257) -> b'est'
+
+# token_to_bytes(257, vocab)
+
+# b"".join(tokens)
+
+def token_to_bytes(token_id, vocab):
+    value = vocab[token_id]
+
+    if isinstance(value, bytes):
+        return value
+    
+    return b''.join(token_to_bytes(t, vocab) for t in value)
+
+
 if __name__ == "__main__":
     # unicode defines around 155k characters across 168 scripts
     # ord() gives us the integer representation of a unicode character
     # chr() returns the char associated with an integer code
-    print(chr(0))
-    print(f"abc{chr(0)}d")
-    print(ord("\x00"))
+    # print(chr(0))
+    # print(f"abc{chr(0)}d")
+    # print(ord("\x00"))
 
     # training a tokenizer on all codepoints would lead to a large vocab (150k+) which is also sparse (a lot of chars are very rare)
     # instead, we use a Unicode encoding scheme like UTF-8. UTF-16, UTF-32 
-    test_string = "hello! こんにちは!"
-    utf8_encoded = test_string.encode("utf-8")
-    print(utf8_encoded)
+    # test_string = "hello! こんにちは!"
+    # utf8_encoded = test_string.encode("utf-8")
+    # print(utf8_encoded)
     # this gives us a bytes object
-    print(type(utf8_encoded))
+    # print(type(utf8_encoded))
 
-    print(len(test_string))
+    # print(len(test_string))
 
     # it is not a 1-1 mapping, 13 input chars -> 23 bytes. one byte is not necessarily one unicode character
-    print(len(utf8_encoded))
-    print(list(utf8_encoded))
+    # print(len(utf8_encoded))
+    # print(list(utf8_encoded))
 
     # [227, 129, 147] or b'\xe3\x81\x93' to represent this single char
-    print(ord('こ'))
-    print(chr(12371))
-    print(list('hello world こ'.encode('utf-8')))
+    # print(ord('こ'))
+    # print(chr(12371))
+    # print(list('hello world こ'.encode('utf-8')))
 
     # we are basically mapping integers in the range of 0 - 155k to a more manageable range of 0 - 255
     # this means that some chars will need multiple bytes to represent them
@@ -58,24 +75,40 @@ if __name__ == "__main__":
     # our vocabulary initially is just the 256 byte values 0-255 and any special tokens e.g. <|endoftext|> which helps define document boundaries
 
     input_str = """low low low low low\n lower lower widest widest widest\n newest newest newest newest newest newest"""
+    import regex as re
 
-    # using a naive pretokenizer e.g. one that splits on whitespace
 
-    vocab = {i: (i, ) for i in range(256)}
-    vocab[256] = ("<|endoftext|>",)
-    next_id = 257
+    special_tokens = ["<|endoftext|>"]
+    vocab = {i: bytes((i, )) for i in range(256)}
+    next_id = 256
+
+    for token in special_tokens:
+        vocab[next_id] = token.encode("utf-8")
+        next_id += 1
 
     merges = []
+    # split documents by special tokens to prevent merging across document boundaries
+    pattern = "|".join(re.escape(token) for token in special_tokens)
+
+
+    f = open("/home/taihim/projects/zapply/cs336/assignment1-basics/tests/fixtures/corpus.en", "r")
+    corpus = f.read()
+
+    chunks  = re.split(pattern, corpus)
+    
+    PAT = r"""'(?:[sdmt]|ll|ve|re)| ?\p{L}+| ?\p{N}+| ?[^\s\p{L}\p{N}]+|\s+(?!\S)|\s+"""
 
     from collections import defaultdict
-    counts = defaultdict(int)
-    out = "".join(input_str.split("\n")).split(" ")
-    print(out)
-    for word in out:
-        counts[tuple(word.encode('utf-8'))] += 1
-    print("Initial counts: ", counts)
 
-    for i in range(6):
+    counts = defaultdict(int)
+
+    for chunk in chunks:
+        for match in re.finditer(PAT, chunk):
+            counts[tuple((match.group().encode('utf-8')))] += 1
+
+    
+    iterations = 500 - len(vocab)
+    for i in range(iterations):
 
         merge_counts = defaultdict(int)
         
@@ -84,31 +117,43 @@ if __name__ == "__main__":
                 pair = (word_bytes[i], word_bytes[i + 1])
                 merge_counts[pair] += freq
             
-        print("Merge counts: ", merge_counts)
+        # print(merge_counts)
 
-        max_pair = max(merge_counts, key=lambda pair: (merge_counts[pair], pair)) # get largest count, and if tied, get lexographically largest pair
-        print("Max Pair: ", max_pair)
-
-        merges.append(max_pair)
-        vocab[next_id] = max_pair
+        max_count = max(merge_counts.values())
+        candidates = [p for p, c in merge_counts.items() if c == max_count]
+        
+        def pair_to_bytes(pair):
+            return (token_to_bytes(pair[0], vocab), token_to_bytes(pair[1], vocab))
+        max_pair = max(candidates, key=pair_to_bytes)
+       
+        merges.append((token_to_bytes(max_pair[0], vocab), token_to_bytes(max_pair[1], vocab)))
+        vocab[next_id] = token_to_bytes(max_pair[0], vocab) + token_to_bytes(max_pair[1], vocab)
 
         new_counts = defaultdict(int)
         for word_bytes, freq in counts.items():
-            copy_bytes = list(word_bytes)
-            for i in range(len(word_bytes) - 1):
-                old_pair = (word_bytes[i], word_bytes[i + 1])
-                if old_pair == max_pair:
-                    copy_bytes[i:i+2] = [next_id]
-                
-            new_counts[tuple(copy_bytes)] = freq
+            new_word = []
+            i = 0
+            while i < len(word_bytes):
+                if i < len(word_bytes) - 1 and (word_bytes[i], word_bytes[i + 1]) == max_pair:
+                    new_word.append(next_id)
+                    i += 2  # Skip both tokens
+                else:
+                    new_word.append(word_bytes[i])
+                    i += 1
+            new_counts[tuple(new_word)] += freq  # Use += not =, in case duplicates after merge!
+
+        counts = new_counts
+
+        # print("New counts: ", new_counts)
         
         next_id += 1
 
-        counts = new_counts
-        print("New counts: ", new_counts)
+    for idx, merge in enumerate(merges):
+        print(idx+1, merge, "\n")
 
-    print(vocab)
-    
+    # print("\nMerges: ", merges, "\n")
+    print("Final vocab: ", vocab, "\n")
+
     tokenize_str = "newest west"
     encoded_str = list(tokenize_str.encode("utf-8"))
 
@@ -130,39 +175,38 @@ if __name__ == "__main__":
     #         i+=1
     #     print("Encoded str: ", encoded_str)
 
-    merges = [merge for idx, merge in vocab.items() if idx > 256]
-    print(merges)
-    print(encoded_str)
+    # merges = [merge for idx, merge in vocab.items() if idx > 256]
+    # print(encoded_str)
 
-    count = 0
-    i = 0
+    # count = 0
+    # i = 0
 
-    while count < 8:
-        for idx, merge in enumerate(merges):    
-            if i == len(encoded_str):
-                print("I is equal, breaking")
-                break            
+    # while count < 8:
+    #     for idx, merge in enumerate(merges):    
+    #         if i == len(encoded_str):
+    #             print("I is equal, breaking")
+    #             break            
         
-            if merge == (encoded_str[i], encoded_str[i + 1]):
-                print("merge match")
-                print("Pair: ", (encoded_str[i], encoded_str[i + 1]))
-                print("Merge: ", merge)
-                encoded_str[i:i+2] = [idx + 257]
-                print(encoded_str)
-                break
+    #         if merge == (encoded_str[i], encoded_str[i + 1]):
+    #             print("merge match")
+    #             print("Pair: ", (encoded_str[i], encoded_str[i + 1]))
+    #             print("Merge: ", merge)
+    #             encoded_str[i:i+2] = [idx + 257]
+    #             print(encoded_str)
+    #             break
 
-        if i >= len(encoded_str):
-            print("decreasing")
-            i = len(encoded_str) - 2
-        else:
-            i += 1
-        count += 1
+    #     if i >= len(encoded_str):
+    #         print("decreasing")
+    #         i = len(encoded_str) - 2
+    #     else:
+    #         i += 1
+    #     count += 1
     
     
     # print(encoded_str)
 
 
-    (110, 101, 119, 101, 115, 116)
+    # (110, 101, 119, 101, 115, 116)
     
     # 257 = (115, 116) s t
     # 258 = (101, 257) e st

@@ -589,4 +589,78 @@ def run_train_bpe(
                 representing that <token1> was merged with <token2>.
                 Merges are ordered by order of creation.
     """
-    raise NotImplementedError
+    from collections import defaultdict
+    import regex as re
+
+    def token_to_bytes(token_id, vocab):
+        value = vocab[token_id]
+
+        if isinstance(value, bytes):
+            return value
+    
+        return b''.join(token_to_bytes(t, vocab) for t in value)
+    
+    vocab = {i: bytes((i, )) for i in range(256)}
+    next_id = 256
+
+    for token in special_tokens:
+        vocab[next_id] = token.encode("utf-8")
+        next_id += 1
+    
+    
+    PAT = r"""'(?:[sdmt]|ll|ve|re)| ?\p{L}+| ?\p{N}+| ?[^\s\p{L}\p{N}]+|\s+(?!\S)|\s+"""
+    pattern = "|".join(re.escape(token) for token in special_tokens)
+
+    with open(input_path, "r") as input_file:
+        corpus = input_file.read()
+        chunks = re.split(pattern, corpus)
+
+        counts = defaultdict(int)
+        merges = []
+
+        for chunk in chunks: 
+            for match in re.finditer(PAT, chunk):
+                counts[tuple((match.group().encode('utf-8')))] += 1     
+
+        iterations = vocab_size - len(vocab)
+        if iterations <= 0:
+            return vocab, merges
+
+        for i in range(iterations):
+            merge_counts = defaultdict(int)
+
+            for word_bytes, freq in counts.items():
+                for i in range(len(word_bytes) - 1):
+                    pair = (word_bytes[i], word_bytes[i + 1])
+                    merge_counts[pair] += freq
+
+            max_count = max(merge_counts.values())
+            candidates = [p for p, c in merge_counts.items() if c == max_count]
+            
+            def pair_to_bytes(pair):
+                return (token_to_bytes(pair[0], vocab), token_to_bytes(pair[1], vocab))
+            max_pair = max(candidates, key=pair_to_bytes)
+            
+            merges.append((token_to_bytes(max_pair[0], vocab), token_to_bytes(max_pair[1], vocab)))
+            vocab[next_id] = token_to_bytes(max_pair[0], vocab) + token_to_bytes(max_pair[1], vocab)
+
+            new_counts = defaultdict(int)
+            for word_bytes, freq in counts.items():
+                new_word = []
+                i = 0
+                while i < len(word_bytes):
+                    if i < len(word_bytes) - 1 and ((word_bytes[i], word_bytes[i+1]) == max_pair):
+                        new_word.append(next_id)
+                        i += 2
+                    else:
+                        new_word.append(word_bytes[i])
+                        i += 1
+                    
+                new_counts[tuple(new_word)] += freq
+            
+            counts = new_counts
+            
+            next_id += 1
+        
+        print(merges)
+        return vocab, merges
