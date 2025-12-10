@@ -21,60 +21,61 @@ def token_to_bytes(token_id, vocab):
     return b''.join(token_to_bytes(t, vocab) for t in value)
 
 
-if __name__ == "__main__":
-    # unicode defines around 155k characters across 168 scripts
-    # ord() gives us the integer representation of a unicode character
-    # chr() returns the char associated with an integer code
-    # print(chr(0))
-    # print(f"abc{chr(0)}d")
-    # print(ord("\x00"))
+# unicode defines around 155k characters across 168 scripts
+# ord() gives us the integer representation of a unicode character
+# chr() returns the char associated with an integer code
+# print(chr(0))
+# print(f"abc{chr(0)}d")
+# print(ord("\x00"))
 
-    # training a tokenizer on all codepoints would lead to a large vocab (150k+) which is also sparse (a lot of chars are very rare)
-    # instead, we use a Unicode encoding scheme like UTF-8. UTF-16, UTF-32 
-    # test_string = "hello! こんにちは!"
-    # utf8_encoded = test_string.encode("utf-8")
-    # print(utf8_encoded)
-    # this gives us a bytes object
-    # print(type(utf8_encoded))
+# training a tokenizer on all codepoints would lead to a large vocab (150k+) which is also sparse (a lot of chars are very rare)
+# instead, we use a Unicode encoding scheme like UTF-8. UTF-16, UTF-32 
+# test_string = "hello! こんにちは!"
+# utf8_encoded = test_string.encode("utf-8")
+# print(utf8_encoded)
+# this gives us a bytes object
+# print(type(utf8_encoded))
 
-    # print(len(test_string))
+# print(len(test_string))
 
-    # it is not a 1-1 mapping, 13 input chars -> 23 bytes. one byte is not necessarily one unicode character
-    # print(len(utf8_encoded))
-    # print(list(utf8_encoded))
+# it is not a 1-1 mapping, 13 input chars -> 23 bytes. one byte is not necessarily one unicode character
+# print(len(utf8_encoded))
+# print(list(utf8_encoded))
 
-    # [227, 129, 147] or b'\xe3\x81\x93' to represent this single char
-    # print(ord('こ'))
-    # print(chr(12371))
-    # print(list('hello world こ'.encode('utf-8')))
+# [227, 129, 147] or b'\xe3\x81\x93' to represent this single char
+# print(ord('こ'))
+# print(chr(12371))
+# print(list('hello world こ'.encode('utf-8')))
 
-    # we are basically mapping integers in the range of 0 - 155k to a more manageable range of 0 - 255
-    # this means that some chars will need multiple bytes to represent them
-    # this eliminates the "out of vocabulary" problem in language modeling
-    # since any input sequence can be represented as a sequence of integers from 0 to 255
-    # utf-16 or 32 why not? they lead to much larger sequences 
-    # utf-8 has the widest support 
+# we are basically mapping integers in the range of 0 - 155k to a more manageable range of 0 - 255
+# this means that some chars will need multiple bytes to represent them
+# this eliminates the "out of vocabulary" problem in language modeling
+# since any input sequence can be represented as a sequence of integers from 0 to 255
+# utf-16 or 32 why not? they lead to much larger sequences 
+# utf-8 has the widest support 
 
-    # byte level tokenization solves the 'out of vocabulary problem' but it leads to very long input sequences which slows down model training
-    # language modeling on byte sequences is also hard because the longer input sequences create long-term dependencies in the data
+# byte level tokenization solves the 'out of vocabulary problem' but it leads to very long input sequences which slows down model training
+# language modeling on byte sequences is also hard because the longer input sequences create long-term dependencies in the data
 
-    # sub-word tokenization sits in the middle of word level and byte level tokenization
-    # it provides a good balance of sequence length and vocabulary size (as well as solving the out of vocab problem)
-    # it compresses commonly encountered byte sequences into one entry in the vocab
-    # e.g. if the byte sequence b'the' occurs often in the raw text training data, assigning it an entry in the vocab would reduce this 3 token sequence to one token
+# sub-word tokenization sits in the middle of word level and byte level tokenization
+# it provides a good balance of sequence length and vocabulary size (as well as solving the out of vocab problem)
+# it compresses commonly encountered byte sequences into one entry in the vocab
+# e.g. if the byte sequence b'the' occurs often in the raw text training data, assigning it an entry in the vocab would reduce this 3 token sequence to one token
 
-    # how are these subword tokens identified? using the Byte Pair Encoding algorithm
-    # BPE is a compression algorithm that iteratively replaces ('merges') the most frequent pair of bytes with a single, new unused index
-    # this algo adds subword tokens to our vocab to maximise the compression of the input sequence
-    # if a word occurs enough times in the training data, it is added as a single subword unit
-    # BPE happens in 3 steps
-    # 1. Vocabulary initialization (special chars + 256 bytes values)
-    # 2. Pretokenization (rough pass over the corpus that reduces our work when counting how often pairs of characters)
-    # 3. Compute BPE merges
+# how are these subword tokens identified? using the Byte Pair Encoding algorithm
+# BPE is a compression algorithm that iteratively replaces ('merges') the most frequent pair of bytes with a single, new unused index
+# this algo adds subword tokens to our vocab to maximise the compression of the input sequence
+# if a word occurs enough times in the training data, it is added as a single subword unit
+# BPE happens in 3 steps
+# 1. Vocabulary initialization (special chars + 256 bytes values)
+# 2. Pretokenization (rough pass over the corpus that reduces our work when counting how often pairs of characters)
+# 3. Compute BPE merges
 
-    # our vocabulary initially is just the 256 byte values 0-255 and any special tokens e.g. <|endoftext|> which helps define document boundaries
+# our vocabulary initially is just the 256 byte values 0-255 and any special tokens e.g. <|endoftext|> which helps define document boundaries
 
-    input_str = """low low low low low\n lower lower widest widest widest\n newest newest newest newest newest newest"""
+def run_bpe():
+
+    # input_str = """low low low low low\n lower lower widest widest widest\n newest newest newest newest newest newest"""
     import regex as re
 
 
@@ -91,7 +92,7 @@ if __name__ == "__main__":
     pattern = "|".join(re.escape(token) for token in special_tokens)
 
 
-    f = open("/home/taihim/projects/zapply/cs336/assignment1-basics/tests/fixtures/corpus.en", "r")
+    f = open("/home/taihim/projects/cs336/assignment1-basics/tests/fixtures/corpus.en", "r")
     corpus = f.read()
 
     chunks  = re.split(pattern, corpus)
@@ -117,7 +118,6 @@ if __name__ == "__main__":
                 pair = (word_bytes[i], word_bytes[i + 1])
                 merge_counts[pair] += freq
             
-        # print(merge_counts)
 
         max_count = max(merge_counts.values())
         candidates = [p for p, c in merge_counts.items() if c == max_count]
@@ -125,7 +125,7 @@ if __name__ == "__main__":
         def pair_to_bytes(pair):
             return (token_to_bytes(pair[0], vocab), token_to_bytes(pair[1], vocab))
         max_pair = max(candidates, key=pair_to_bytes)
-       
+    
         merges.append((token_to_bytes(max_pair[0], vocab), token_to_bytes(max_pair[1], vocab)))
         vocab[next_id] = token_to_bytes(max_pair[0], vocab) + token_to_bytes(max_pair[1], vocab)
 
@@ -148,110 +148,17 @@ if __name__ == "__main__":
         
         next_id += 1
 
-    for idx, merge in enumerate(merges):
-        print(idx+1, merge, "\n")
+    # for idx, merge in enumerate(merges):
+    #     print(idx+1, merge, "\n")
 
     # print("\nMerges: ", merges, "\n")
-    print("Final vocab: ", vocab, "\n")
+    # print("Final vocab: ", vocab, "\n")
 
-    tokenize_str = "newest west"
-    encoded_str = list(tokenize_str.encode("utf-8"))
+    # tokenize_str = "newest west"
+    # encoded_str = list(tokenize_str.encode("utf-8"))
 
-    # while True:
-        
-    #     # print("Current length: ", len(encoded_str))
-    #     # print("Current i: ", i)
-    #     i = 0
-    #     for idx, merge in vocab.items():
-    #         if idx < 257:
-    #             continue
-    #         if i == len(encoded_str) - 1:
-    #             break
-    #         if list(merge) == [encoded_str[i], encoded_str[i + 1]]:
-    #             encoded_str[i:i+2] = [idx]
-    #             print("matched")
-    #             print(merge)
-    #             break
-    #         i+=1
-    #     print("Encoded str: ", encoded_str)
+if __name__ == "__main__":
+    import cProfile
 
-    # merges = [merge for idx, merge in vocab.items() if idx > 256]
-    # print(encoded_str)
+    cProfile.run("run_bpe()")
 
-    # count = 0
-    # i = 0
-
-    # while count < 8:
-    #     for idx, merge in enumerate(merges):    
-    #         if i == len(encoded_str):
-    #             print("I is equal, breaking")
-    #             break            
-        
-    #         if merge == (encoded_str[i], encoded_str[i + 1]):
-    #             print("merge match")
-    #             print("Pair: ", (encoded_str[i], encoded_str[i + 1]))
-    #             print("Merge: ", merge)
-    #             encoded_str[i:i+2] = [idx + 257]
-    #             print(encoded_str)
-    #             break
-
-    #     if i >= len(encoded_str):
-    #         print("decreasing")
-    #         i = len(encoded_str) - 2
-    #     else:
-    #         i += 1
-    #     count += 1
-    
-    
-    # print(encoded_str)
-
-
-    # (110, 101, 119, 101, 115, 116)
-    
-    # 257 = (115, 116) s t
-    # 258 = (101, 257) e st
-    # 259 = (111, 119) o w
-    # 260 = (108, 259) l ow
-    # 261 = (119, 258) w est
-    # 262 = (110, 101) n e
-
-    # print(vocab[256])
-    # print(vocab[257])
-    # print(vocab[258])
-    # print(vocab[259])
-    # print(vocab[260])
-    # print(vocab[261])
-    
-    # print("".join([chr(uni) for uni in vocab[256]]))
-    # print("".join([chr(uni) for uni in vocab[257]]))
-    # print("".join([chr(uni) for uni in vocab[258]]))
-    # print("".join([chr(uni) for uni in vocab[259]]))
-    # print("".join([chr(uni) for uni in vocab[260]]))
-    # print("".join([chr(uni) for uni in vocab[261]]))
-    
-    # for i in range(1):
-    #     max_value = -1
-    #     max_keys = [0]
-    #     for key, val in merge_counts.items():
-    #         if val >= max_value:
-    #             if val == max_value:
-    #                 elem = max_keys.pop()
-    #                 max_keys.append(max(key, elem))
-
-    #             else:
-    #                 max_value = val
-
-    #                 max_keys.pop()
-    #                 max_keys.append(key)
-        
-    #     value_to_merge = tuple("".join(max_keys[0]).encode('utf-8'))
-    #     print("Value to merge: ", value_to_merge, type(value_to_merge[0]))
-        
-    #     for key in counts.keys():
-    #         print(key)
-            
-    #         if value_to_merge in key:
-    #             print(key)
-    
-    # print((1,2,3) in (1,2,3,4,5))
-    # print(bytes((110, 101, 119, 101, 115, 116)).decode('utf-8'))

@@ -662,5 +662,4 @@ def run_train_bpe(
             
             next_id += 1
         
-        print(merges)
         return vocab, merges
