@@ -92,7 +92,7 @@ def run_bpe():
     pattern = "|".join(re.escape(token) for token in special_tokens)
 
 
-    f = open("/home/taihim/projects/cs336/assignment1-basics/tests/fixtures/corpus.en", "r")
+    f = open("/home/taihim/projects/zapply/cs336/assignment1-basics/tests/fixtures/corpus.en", "r")
     corpus = f.read()
 
     chunks  = re.split(pattern, corpus)
@@ -107,58 +107,54 @@ def run_bpe():
         for match in re.finditer(PAT, chunk):
             counts[tuple((match.group().encode('utf-8')))] += 1
 
+
+    pair_counts = defaultdict(int)
+    pair_to_words = defaultdict(set)   
+
+    for word_bytes, freq in counts.items():
+        for i in range(len(word_bytes) - 1):
+            pair = (word_bytes[i], word_bytes[i + 1])
+            pair_counts[pair] += freq
+            pair_to_words[pair].add(tuple(word_bytes))
     
-    iterations = 500 - len(vocab)
-    for i in range(iterations):
-
-        merge_counts = defaultdict(int)
-        
-        for word_bytes, freq in counts.items():
-            for i in range(len(word_bytes) - 1):
-                pair = (word_bytes[i], word_bytes[i + 1])
-                merge_counts[pair] += freq
-            
-
-        max_count = max(merge_counts.values())
-        candidates = [p for p, c in merge_counts.items() if c == max_count]
-        
-        def pair_to_bytes(pair):
-            return (token_to_bytes(pair[0], vocab), token_to_bytes(pair[1], vocab))
-        max_pair = max(candidates, key=pair_to_bytes)
+    print(pair_counts)
+    # print(pair_to_words)
     
-        merges.append((token_to_bytes(max_pair[0], vocab), token_to_bytes(max_pair[1], vocab)))
-        vocab[next_id] = token_to_bytes(max_pair[0], vocab) + token_to_bytes(max_pair[1], vocab)
+    # iterations = 500 - len(vocab)
+    # for i in range(iterations):
 
-        new_counts = defaultdict(int)
-        for word_bytes, freq in counts.items():
-            new_word = []
-            i = 0
-            while i < len(word_bytes):
-                if i < len(word_bytes) - 1 and (word_bytes[i], word_bytes[i + 1]) == max_pair:
-                    new_word.append(next_id)
-                    i += 2  # Skip both tokens
-                else:
-                    new_word.append(word_bytes[i])
-                    i += 1
-            new_counts[tuple(new_word)] += freq  # Use += not =, in case duplicates after merge!
-
-        counts = new_counts
-
-        # print("New counts: ", new_counts)
+    #     max_count = max(merge_counts.values())
+    #     candidates = [p for p, c in merge_counts.items() if c == max_count]
         
-        next_id += 1
+    #     def pair_to_bytes(pair):
+    #         return (token_to_bytes(pair[0], vocab), token_to_bytes(pair[1], vocab))
+    #     max_pair = max(candidates, key=pair_to_bytes)
+    
+    #     merges.append((token_to_bytes(max_pair[0], vocab), token_to_bytes(max_pair[1], vocab)))
+    #     vocab[next_id] = token_to_bytes(max_pair[0], vocab) + token_to_bytes(max_pair[1], vocab)
 
-    # for idx, merge in enumerate(merges):
-    #     print(idx+1, merge, "\n")
+    #     new_counts = defaultdict(int)
+    #     for word_bytes, freq in counts.items():
+    #         new_word = []
+    #         i = 0
+    #         while i < len(word_bytes):
+    #             if i < len(word_bytes) - 1 and (word_bytes[i], word_bytes[i + 1]) == max_pair:
+    #                 new_word.append(next_id)
+    #                 i += 2  # Skip both tokens
+    #             else:
+    #                 new_word.append(word_bytes[i])
+    #                 i += 1
+    #         new_counts[tuple(new_word)] += freq  # Use += not =, in case duplicates after merge!
 
-    # print("\nMerges: ", merges, "\n")
-    # print("Final vocab: ", vocab, "\n")
+    #     counts = new_counts
 
-    # tokenize_str = "newest west"
-    # encoded_str = list(tokenize_str.encode("utf-8"))
+    #     # print("New counts: ", new_counts)
+        
+    #     next_id += 1
 
 if __name__ == "__main__":
-    import cProfile
+    # import cProfile
 
-    cProfile.run("run_bpe()")
+    # cProfile.run("run_bpe()")
+    run_bpe()
 

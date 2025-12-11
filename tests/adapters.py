@@ -626,13 +626,21 @@ def run_train_bpe(
         if iterations <= 0:
             return vocab, merges
 
-        for i in range(iterations):
-            merge_counts = defaultdict(int)
+        pair_counts = defaultdict(int)
+        pair_to_words = defaultdict(set)
+        for word_bytes, freq in counts.items():
+            for i in range(len(word_bytes) - 1):
+                pair = (word_bytes[i], word_bytes[i + 1])
+                pair_counts[pair] += freq
+                pair_to_words[pair].add(word_bytes)
 
-            for word_bytes, freq in counts.items():
-                for i in range(len(word_bytes) - 1):
-                    pair = (word_bytes[i], word_bytes[i + 1])
-                    merge_counts[pair] += freq
+        for i in range(iterations):
+            # merge_counts = defaultdict(int)
+
+            # for word_bytes, freq in counts.items():
+            #     for i in range(len(word_bytes) - 1):
+            #         pair = (word_bytes[i], word_bytes[i + 1])
+            #         merge_counts[pair] += freq
 
             max_count = max(merge_counts.values())
             candidates = [p for p, c in merge_counts.items() if c == max_count]
@@ -644,21 +652,21 @@ def run_train_bpe(
             merges.append((token_to_bytes(max_pair[0], vocab), token_to_bytes(max_pair[1], vocab)))
             vocab[next_id] = token_to_bytes(max_pair[0], vocab) + token_to_bytes(max_pair[1], vocab)
 
-            new_counts = defaultdict(int)
-            for word_bytes, freq in counts.items():
-                new_word = []
-                i = 0
-                while i < len(word_bytes):
-                    if i < len(word_bytes) - 1 and ((word_bytes[i], word_bytes[i+1]) == max_pair):
-                        new_word.append(next_id)
-                        i += 2
-                    else:
-                        new_word.append(word_bytes[i])
-                        i += 1
+            # new_counts = defaultdict(int)
+            # for word_bytes, freq in counts.items():
+            #     new_word = []
+            #     i = 0
+            #     while i < len(word_bytes):
+            #         if i < len(word_bytes) - 1 and ((word_bytes[i], word_bytes[i+1]) == max_pair):
+            #             new_word.append(next_id)
+            #             i += 2
+            #         else:
+            #             new_word.append(word_bytes[i])
+            #             i += 1
                     
-                new_counts[tuple(new_word)] += freq
+            #     new_counts[tuple(new_word)] += freq
             
-            counts = new_counts
+            # counts = new_counts
             
             next_id += 1
         
