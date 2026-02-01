@@ -1,3 +1,4 @@
+from pretokenization_example import find_chunk_boundaries
 
 # this function is wrong because it assumes every unicode char is a single byte, which is not true e.g. こ is represented by multiple bytes i.e. [227, 129, 147] or b'\xe3\x81\x93'
 def decode_utf8_bytes_to_str_wrong(bytestring: bytes):
@@ -75,7 +76,6 @@ def token_to_bytes(token_id, vocab):
 
 def run_bpe():
 
-    # input_str = """low low low low low\n lower lower widest widest widest\n newest newest newest newest newest newest"""
     import regex as re
 
 
@@ -90,11 +90,28 @@ def run_bpe():
     merges = []
     # split documents by special tokens to prevent merging across document boundaries
     pattern = "|".join(re.escape(token) for token in special_tokens)
+    num_processes = 4
 
+    f = open("/home/taihim/projects/cs336/assignment1-basics/tests/fixtures/corpus.en", "rb")
+    # f = open("/home/taihim/projects/cs336/assignment1-basics/tests/fixtures/tinystories_sample.txt", "rb")
 
-    f = open("/home/taihim/projects/zapply/cs336/assignment1-basics/tests/fixtures/corpus.en", "r")
+    
+    boundaries = find_chunk_boundaries(f, num_processes, b"<|endoftext|>")
+    
+    print(boundaries)
+
+    for start, end in zip(boundaries[:-1], boundaries[1:]):
+         print(start, end)
+         f.seek(start)
+         chunk = f.read(end - start).decode("utf-8", errors="ignore")
+        #  print(chunk)
+        #  print("__"*30)
+
+    return
+
     corpus = f.read()
-
+    # corpus = """low low low low low\n lower lower widest widest widest\n newest newest newest newest newest newest"""
+    
     chunks  = re.split(pattern, corpus)
     
     PAT = r"""'(?:[sdmt]|ll|ve|re)| ?\p{L}+| ?\p{N}+| ?[^\s\p{L}\p{N}]+|\s+(?!\S)|\s+"""
@@ -117,9 +134,17 @@ def run_bpe():
             pair_counts[pair] += freq
             pair_to_words[pair].add(tuple(word_bytes))
     
-    print(pair_counts)
+    # print(counts)
+    # print(pair_counts)
     # print(pair_to_words)
     
+
+    # iterations = 2
+
+    # for i in range(iterations):
+    #     max_count = max(pair_counts.values()) 
+
+
     # iterations = 500 - len(vocab)
     # for i in range(iterations):
 
