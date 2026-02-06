@@ -92,8 +92,8 @@ def run_bpe():
     pattern = "|".join(re.escape(token) for token in special_tokens)
     num_processes = 4
 
-    f = open("/home/taihim/projects/cs336/assignment1-basics/tests/fixtures/corpus.en", "rb")
-    # f = open("/home/taihim/projects/cs336/assignment1-basics/tests/fixtures/tinystories_sample.txt", "rb")
+    # f = open("/home/taihim/projects/cs336/assignment1-basics/tests/fixtures/corpus.en", "rb")
+    f = open("/home/taihim/projects/cs336/assignment1-basics/tests/fixtures/tinystories_sample.txt", "rb")
 
     
     boundaries = find_chunk_boundaries(f, num_processes, b"<|endoftext|>")
@@ -104,8 +104,8 @@ def run_bpe():
          print(start, end)
          f.seek(start)
          chunk = f.read(end - start).decode("utf-8", errors="ignore")
-        #  print(chunk)
-        #  print("__"*30)
+         print(chunk)
+         print("__"*30)
 
     return
 
